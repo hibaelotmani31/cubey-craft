@@ -19,14 +19,20 @@
 :root{--bg:#0d1218;--fg:#f3ece0;color-scheme:dark}
 html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);overflow:hidden}
 #wrap{display:flex;align-items:center;justify-content:center;height:100%;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));box-sizing:border-box}
+#rotate{display:none}
+@media (orientation:portrait) and (pointer:coarse){#rotate{display:flex;position:fixed;inset:0;z-index:5;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:#0d1218;color:#f3ece0;font:600 20px 'Chakra Petch',system-ui,sans-serif;text-align:center;padding:24px}#rotate svg{animation:tilt 2s ease-in-out infinite}}
+@keyframes tilt{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+@media (pointer:coarse) and (orientation:landscape){#wrap{padding:0}canvas{border-radius:0;max-width:none;width:auto;height:100%}}
 canvas{width:100%;max-width:1200px;max-height:100%;aspect-ratio:16/9;border-radius:10px;box-shadow:0 20px 60px #000c;touch-action:none;display:block}
 </style>
 </head>
 <body>
+<div id="rotate"><svg width="64" height="96" viewBox="0 0 64 96" fill="none" stroke="#8cffc8" stroke-width="4"><rect x="4" y="4" width="56" height="88" rx="10"/><circle cx="32" cy="80" r="3" fill="#8cffc8"/></svg>Rotate your phone to play<small style="font:500 14px system-ui;opacity:.7">Cubey Craft is played in landscape</small></div>
 <div id="wrap"><canvas id="c" width="1280" height="720" tabindex="0" aria-label="Jeu Cubey Craft"></canvas></div>
 <script>
 const cv=document.getElementById('c'),x=cv.getContext('2d');
 const W=1280,H=720,B=48,GROUND=H-B*2,HX=220;
+const TOUCH=matchMedia('(pointer:coarse)').matches;
 const R=Math.random,lerp=(a,b,k)=>a+(b-a)*k,clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 let best=0;try{best=+localStorage.getItem('cubeyBest')||0}catch(e){}
 
@@ -253,17 +259,17 @@ function draw(){x.save();if(shake)x.translate((R()-.5)*shake,(R()-.5)*shake);
  if(state==='title'){x.fillStyle='rgba(8,6,12,.45)';x.fillRect(0,0,W,H);hero(200+Math.sin(t*.05)*8,Math.sin(t*.03)*.1);shopUI();
   text('CUBEY CRAFT',W/2,380,92,'#fff1dc','700');x.fillStyle='rgba(255,200,140,.6)';x.fillRect(W/2-160,400,320,1);
   text('Fly between the pillars. Grab gems. Don\'t crash.',W/2,440,22,'#f3ece0','500','center',FB);
-  text('Ability (Shift / D): '+DASHES[sel].n+' — '+DASHES[sel].d,W/2,475,18,'#ffd9a0','600','center',FB);
+  text((TOUCH?'Ability: ':'Ability (Shift / D): ')+DASHES[sel].n+' — '+DASHES[sel].d,W/2,475,18,'#ffd9a0','600','center',FB);
   text('Every 25 points: forest → desert → cave → snowy peaks',W/2,502,16,'rgba(243,236,224,.75)','500','center',FB);
-  const pulse=.7+Math.sin(t*.08)*.3;text('SPACE / CLICK / TAP TO FLY',W/2,560,28,`rgba(140,255,200,${pulse})`,'600');
-  text('P pause   ·   M music   ·   best '+best,W/2,605,16,'rgba(243,236,224,.7)','500','center',FB);}
- if(state==='pause'){x.fillStyle='rgba(8,6,12,.6)';x.fillRect(0,0,W,H);text('PAUSE',W/2,H/2,80);text('Tap the screen or press P to resume',W/2,H/2+50,18,'rgba(243,236,224,.8)','500','center',FB);homeBtn();}
+  const pulse=.7+Math.sin(t*.08)*.3;text(TOUCH?'TAP TO FLY':'SPACE / CLICK / TAP TO FLY',W/2,560,28,`rgba(140,255,200,${pulse})`,'600');
+  text((TOUCH?'best ':'P pause   ·   M music   ·   best ')+best,W/2,605,16,'rgba(243,236,224,.7)','500','center',FB);}
+ if(state==='pause'){x.fillStyle='rgba(8,6,12,.6)';x.fillRect(0,0,W,H);text('PAUSE',W/2,H/2,80);text(TOUCH?'Tap to resume':'Tap the screen or press P to resume',W/2,H/2+50,18,'rgba(243,236,224,.8)','500','center',FB);homeBtn();}
  if(state==='play'||state==='pause'){panel(296,22,52,52);x.fillStyle='#f3ece0';if(state==='play'){x.fillRect(312,36,7,24);x.fillRect(325,36,7,24);}else{x.beginPath();x.moveTo(314,35);x.lineTo(334,48);x.lineTo(314,61);x.fill();}}
  if(state==='over'){x.fillStyle='rgba(8,6,12,.7)';x.fillRect(0,0,W,H);text('SIGNAL LOST',W/2,290,84,'#ff8a70');
   text('Score '+g.score+'   ·   Gems '+g.gems,W/2,355,30,'#f3ece0','600','center',FB);
   text(g.score>=best&&g.score>0?'NEW BEST':'Record '+best,W/2,405,26,'#ffd9a0','700');
-  if(Ads.on){adBtn(W/2-232,g.revived?'ALREADY USED':'REVIVE',g.revived?'once per run':'ad · key R',!g.revived);adBtn(W/2+12,g.doubled?'GEMS DOUBLED':'DOUBLE GEMS',g.doubled?'thanks!':'ad · key G',!g.doubled&&g.gems>0);if(adMsg>0){adMsg--;text('No ad available, try again later',W/2,418,14,'#ff8a70','600','center',FB);}}
-  text('SPACE / TAP TO RETRY',W/2,520,26,'rgba(140,255,200,.9)','600');homeBtn();}}
+  if(Ads.on){adBtn(W/2-232,g.revived?'ALREADY USED':'REVIVE',g.revived?'once per run':TOUCH?'watch an ad':'ad · key R',!g.revived);adBtn(W/2+12,g.doubled?'GEMS DOUBLED':'DOUBLE GEMS',g.doubled?'thanks!':TOUCH?'watch an ad':'ad · key G',!g.doubled&&g.gems>0);if(adMsg>0){adMsg--;text('No ad available, try again later',W/2,418,14,'#ff8a70','600','center',FB);}}
+  text(TOUCH?'TAP TO RETRY':'SPACE / TAP TO RETRY',W/2,520,26,'rgba(140,255,200,.9)','600');homeBtn();}}
 /* ---------- publicités (CrazyGames SDK) ---------- */
 let adPlaying=false,runs=0;
 const Ads={on:false,
@@ -281,22 +287,22 @@ function doubleGems(){if(state!=='over'||g.doubled||!g.gems)return;Ads.show('rew
 let adMsg=0;
 function adBtn(x0,label,sub,on){panel(x0,428,220,52);x.globalAlpha=on?1:.4;x.fillStyle='#ffd9a0';x.beginPath();x.moveTo(x0+18,442);x.lineTo(x0+34,454);x.lineTo(x0+18,466);x.fill();text(label,x0+122,453,17,'#f3ece0','700');text(sub,x0+122,472,12,'rgba(243,236,224,.7)','500','center',FB);x.globalAlpha=1;}
 function goHome(){state='title';sel=save.skin;}
-function homeBtn(){panel(W/2-110,548,220,56);x.fillStyle='#ffd9a0';x.beginPath();x.moveTo(W/2-72,580);x.lineTo(W/2-58,567);x.lineTo(W/2-44,580);x.closePath();x.fill();x.fillRect(W/2-68,580,20,12);text('HOME',W/2+18,585,22,'#f3ece0','700');text('key H',W/2,628,13,'rgba(243,236,224,.55)','500','center',FB);}
+function homeBtn(){panel(W/2-110,548,220,56);x.fillStyle='#ffd9a0';x.beginPath();x.moveTo(W/2-72,580);x.lineTo(W/2-58,567);x.lineTo(W/2-44,580);x.closePath();x.fill();x.fillRect(W/2-68,580,20,12);text('HOME',W/2+18,585,22,'#f3ece0','700');if(!TOUCH)text('key H',W/2,628,13,'rgba(243,236,224,.55)','500','center',FB);}
 function shopUI(){const s=SKINS[sel],own=save.owned.includes(sel);
  [[130,-1],[310,1]].forEach(([ax,d])=>{panel(ax-26,174,52,52);x.fillStyle='#ffd9a0';x.beginPath();x.moveTo(ax+d*10,200);x.lineTo(ax-d*8,188);x.lineTo(ax-d*8,212);x.fill();});
  text(s.n.toUpperCase(),HX,272,24,'#fff1dc','700');
- const st=own?(save.skin===sel?'EQUIPPED':'ENTER / TAP: EQUIP'):(s.p+' gems · '+(save.bank>=s.p?'ENTER / TAP: BUY':'not enough gems'));
+ const st=own?(save.skin===sel?'EQUIPPED':TOUCH?'TAP NAME TO EQUIP':'ENTER / TAP: EQUIP'):(s.p+' gems · '+(save.bank>=s.p?TOUCH?'TAP NAME TO BUY':'ENTER / TAP: BUY':'not enough gems'));
  text(st,HX,296,14,own?'#7dffc0':'#ffd9a0','600','center',FB);
  if(lockMsg>0){lockMsg--;text('Locked skin: buy it first',HX,320,15,'#ff8a70','600','center',FB);}
  panel(24,22,250,40);text('Bank  '+save.bank+' gems',40,48,16,'#7dffc0','600','left',FB);}
 function hudExtra(){const cx=W-90,cy=H-90,rd=g.dcd>0?1-g.dcd/g.dcdMax:1;
  x.fillStyle='rgba(10,14,18,.55)';x.beginPath();x.arc(cx,cy,46,0,7);x.fill();
  x.strokeStyle=rd>=1?'#78dcff':'rgba(120,220,255,.4)';x.lineWidth=5;x.beginPath();x.arc(cx,cy,42,-Math.PI/2,-Math.PI/2+rd*Math.PI*2);x.stroke();
- text(DASHES[save.skin].n.toUpperCase(),cx,cy+3,DASHES[save.skin].n.length>8?11:16,rd>=1?'#e8f8ff':'rgba(232,248,255,.45)','700');text('Shift',cx,cy+22,12,'rgba(232,248,255,.6)','500','center',FB);
+ text(DASHES[save.skin].n.toUpperCase(),cx,cy+3,DASHES[save.skin].n.length>8?11:16,rd>=1?'#e8f8ff':'rgba(232,248,255,.45)','700');if(!TOUCH)text('Shift',cx,cy+22,12,'rgba(232,248,255,.6)','500','center',FB);
  if(g.combo>=2)text('COMBO '+g.combo,W-129,142,20,'#ffd9a0','700');
  if(g.banner>0){const a=clamp(g.banner/40,0,1)*clamp((200-g.banner)/20,0,1),b=BIO();text(b.n.toUpperCase(),W/2,150,50,`rgba(255,241,220,${a})`,'700');text(b.d,W/2,184,18,`rgba(255,217,160,${a})`,'500','center',FB);}}
 let tut=0;try{tut=+localStorage.getItem('cubeyTut')||0}catch(e){}
-function tutorial(){if(state!=='play'||tut>=3||!g)return;const msgs=['TAP / SPACE TO FLY UP','FLY THROUGH THE GAPS','SHIFT / ROUND BUTTON: SPECIAL ABILITY'];const step=g.score<1?0:g.score<3?1:2;if(step===2&&g.score>=6){tut=3;try{localStorage.setItem('cubeyTut',3)}catch(e){}return;}
+function tutorial(){if(state!=='play'||tut>=3||!g)return;const msgs=['TAP / SPACE TO FLY UP','FLY THROUGH THE GAPS',TOUCH?'ROUND BUTTON: SPECIAL ABILITY':'SHIFT / ROUND BUTTON: SPECIAL ABILITY'];const step=g.score<1?0:g.score<3?1:2;if(step===2&&g.score>=6){tut=3;try{localStorage.setItem('cubeyTut',3)}catch(e){}return;}
  const a=.85+Math.sin(t*.1)*.15;x.fillStyle='rgba(8,10,14,.82)';x.beginPath();x.roundRect(W/2-280,146,560,60,8);x.fill();x.strokeStyle='rgba(140,255,200,.6)';x.lineWidth=2;x.stroke();text(msgs[step],W/2,186,24,`rgba(170,255,215,${a})`,'700');if(step===0&&g.wait){x.fillStyle=`rgba(255,255,255,${a})`;x.beginPath();x.moveTo(HX+60,g.y-10);x.lineTo(HX+40,g.y-34);x.lineTo(HX+80,g.y-34);x.fill();}}
 function loop(now){const dt=adPlaying?0:clamp((now-last)/16.667,0,3)*slowmo;last=now;update(dt);draw();tutorial();requestAnimationFrame(loop);}
 requestAnimationFrame(loop);
