@@ -4,7 +4,7 @@ Jeu d'arcade en navigateur : pilote un petit drone-cube entre des colonnes de bl
 
 **▶ Jouer : https://hibaelotmani31.github.io/cubey-craft/**
 
-![Gameplay](docs/gameplay.png)
+![Gameplay](gameplay.png)
 
 ## Fonctionnalités
 
