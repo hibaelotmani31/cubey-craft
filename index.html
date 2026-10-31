@@ -34,15 +34,17 @@ const cv=document.getElementById('c'),x=cv.getContext('2d');
 const W=1280,H=720,B=48,GROUND=H-B*2,HX=220;
 const TOUCH=matchMedia('(pointer:coarse)').matches;
 const R=Math.random,lerp=(a,b,k)=>a+(b-a)*k,clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-let best=0;try{best=+localStorage.getItem('cubeyBest')||0}catch(e){}
+const Store={sdk:null,get(k){try{return this.sdk?this.sdk.getItem(k):localStorage.getItem(k)}catch(e){return null}},set(k,v){try{this.sdk?this.sdk.setItem(k,v):localStorage.setItem(k,v)}catch(e){}}};
+let best=0;best=+Store.get('cubeyBest')||0;
 
 /* ---------- audio ---------- */
 let ac=null,musicOn=true,mt=null,step=0,master,rev;
-function audio(){if(!ac){ac=new(window.AudioContext||window.webkitAudioContext)();master=ac.createGain();master.gain.value=.9;
+function audio(){if(!ac){ac=new(window.AudioContext||window.webkitAudioContext)();master=ac.createGain();master.gain.value=sdkMute?0:.9;
  // petite réverb par convolution
  rev=ac.createConvolver();const len=ac.sampleRate*2,buf=ac.createBuffer(2,len,ac.sampleRate);for(let c=0;c<2;c++){const d=buf.getChannelData(c);for(let i=0;i<len;i++)d[i]=(R()*2-1)*Math.pow(1-i/len,3);}rev.buffer=buf;
  const wet=ac.createGain();wet.gain.value=.35;rev.connect(wet).connect(ac.destination);master.connect(ac.destination);master.connect(rev);}
  if(ac.state==='suspended')ac.resume();}
+let sdkMute=false;function applyVol(){if(master)master.gain.value=sdkMute?0:.9;}
 function tone(f,d,type='sine',v=.06,t0=0,slide=0){if(!ac)return;const t=ac.currentTime+t0,o=ac.createOscillator(),g=ac.createGain(),lp=ac.createBiquadFilter();lp.type='lowpass';lp.frequency.value=2400;o.type=type;o.frequency.setValueAtTime(f,t);if(slide)o.frequency.exponentialRampToValueAtTime(f*slide,t+d);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(lp).connect(g).connect(master);o.start(t);o.stop(t+d+.05);}
 function noise(d,v=.1,f=800){if(!ac)return;const n=ac.createBufferSource(),b=ac.createBuffer(1,ac.sampleRate*d,ac.sampleRate),dd=b.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=R()*2-1;n.buffer=b;const bp=ac.createBiquadFilter();bp.type='bandpass';bp.frequency.value=f;const g=ac.createGain();g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+d);n.connect(bp).connect(g).connect(master);n.start();}
 const sfx={flap:()=>{noise(.18,.12,600);tone(220,.12,'sine',.03,0,1.6)},gem:()=>{tone(1318,.25,'sine',.05);tone(1975,.4,'sine',.035,.06)},hit:()=>{noise(.5,.35,180);tone(80,.5,'sawtooth',.07,0,.5)},power:()=>[523,659,784,1047].forEach((f,i)=>tone(f,.4,'triangle',.05,i*.07)),over:()=>[392,330,262,196].forEach((f,i)=>tone(f,.8,'triangle',.06,i*.25)),
@@ -78,8 +80,8 @@ const SKINS=[
  {n:'Obsidian',c:['#9a7ac0','#3a2550','#1a1028','#08040e'],eye:'200,120,255',p:80},
  {n:'Neon',c:['#c0fff0','#20e0b0','#0a6a70','#04202a'],eye:'255,60,200',p:150},
  {n:'Ember',c:['#ffd0a0','#e0602a','#7a2010','#2a0804'],eye:'255,240,120',p:250}];
-let save={bank:0,owned:[0],skin:0};try{Object.assign(save,JSON.parse(localStorage.getItem('cubeySave'))||{})}catch(e){}
-function store(){try{localStorage.setItem('cubeySave',JSON.stringify(save))}catch(e){}}
+let save={bank:0,owned:[0],skin:0};try{Object.assign(save,JSON.parse(Store.get('cubeySave'))||{})}catch(e){}
+function store(){Store.set('cubeySave',JSON.stringify(save))}
 let sel=save.skin,lockMsg=0;
 function skinOf(){return state==='title'?sel:save.skin;}
 function browse(d){audio();sel=(sel+d+SKINS.length)%SKINS.length;tone(520,.08,'sine',.04);}
@@ -132,7 +134,7 @@ function burst(px,py,c,n=12,sp=10,glow=0){for(let i=0;i<n;i++){const a=R()*7,v=R
 function debris(px,py,mat){for(let i=0;i<14;i++)g.parts.push({x:px,y:py,vx:(R()-.3)*8,vy:-R()*8,l:70,ml:70,s:5+R()*7,deb:mat,r:R()*6,vr:(R()-.5)*.4});}
 function hurt(){if(g.inv>0)return;if(g.shield>0){g.shield=0;g.inv=60;burst(HX,g.y,'120,200,255',30,12,1);sfx.hit();flash=.4;return;}
  g.lives--;g.inv=100;shake=22;flash=.7;slowmo=.25;g.combo=0;debris(HX,g.y,'stone');burst(HX,g.y,'255,120,80',24,9,1);sfx.hit();
- if(g.lives<=0){state='over';g.revived=g.revived||false;g.doubled=false;Ads.stop();sfx.over();save.bank+=g.gems-(g.banked||0);g.banked=g.gems;store();if(g.score>best){best=g.score;try{localStorage.setItem('cubeyBest',best)}catch(e){}}}}
+ if(g.lives<=0){state='over';g.revived=g.revived||false;g.doubled=false;Ads.stop();sfx.over();save.bank+=g.gems-(g.banked||0);g.banked=g.gems;store();if(g.score>best){best=g.score;Store.set('cubeyBest',best)}}}
 function update(dt){t+=dt;clouds.forEach(c=>{c.x-=c.v*dt;if(c.x<-250){c.x=W+250;c.y=40+R()*220}});
  const bi=g&&state!=='title'?g.biome:0;dust.forEach(d=>{d.x-=d.v*dt*(bi===1?9:bi===3?2:1);d.y+=bi===3?(1+d.s*.5)*dt:Math.sin(t*.02+d.p)*.2;if(d.x<0)d.x=W;if(d.y>H)d.y=0;});
  slowmo=lerp(slowmo,1,.04);
@@ -273,7 +275,9 @@ function draw(){x.save();if(shake)x.translate((R()-.5)*shake,(R()-.5)*shake);
 /* ---------- publicités (CrazyGames SDK) ---------- */
 let adPlaying=false,runs=0;
 const Ads={on:false,
- async init(){try{const S=window.CrazyGames&&window.CrazyGames.SDK;if(!S)return;await S.init();this.on=S.environment==='crazygames'||S.environment==='local';}catch(e){this.on=false;}},
+ async init(){try{const S=window.CrazyGames&&window.CrazyGames.SDK;if(!S)return;await S.init();this.on=S.environment==='crazygames'||S.environment==='local';
+  if(this.on){try{if(S.data){Store.sdk=S.data;save={bank:0,owned:[0],skin:0};try{Object.assign(save,JSON.parse(Store.get('cubeySave'))||{})}catch(e){}sel=save.skin;best=+Store.get('cubeyBest')||0;tut=+Store.get('cubeyTut')||0;}}catch(e){}
+   try{const ap=st=>{sdkMute=!!(st&&st.muteAudio);applyVol();};ap(S.game.settings);S.game.addSettingsChangeListener(ap);}catch(e){}}}catch(e){this.on=false;}},
  sdk(){return window.CrazyGames.SDK;},
  start(){if(this.on)try{this.sdk().game.gameplayStart()}catch(e){}},
  stop(){if(this.on)try{this.sdk().game.gameplayStop()}catch(e){}},
@@ -301,8 +305,8 @@ function hudExtra(){const cx=W-90,cy=H-90,rd=g.dcd>0?1-g.dcd/g.dcdMax:1;
  text(DASHES[save.skin].n.toUpperCase(),cx,cy+3,DASHES[save.skin].n.length>8?11:16,rd>=1?'#e8f8ff':'rgba(232,248,255,.45)','700');if(!TOUCH)text('Shift',cx,cy+22,12,'rgba(232,248,255,.6)','500','center',FB);
  if(g.combo>=2)text('COMBO '+g.combo,W-129,142,20,'#ffd9a0','700');
  if(g.banner>0){const a=clamp(g.banner/40,0,1)*clamp((200-g.banner)/20,0,1),b=BIO();text(b.n.toUpperCase(),W/2,150,50,`rgba(255,241,220,${a})`,'700');text(b.d,W/2,184,18,`rgba(255,217,160,${a})`,'500','center',FB);}}
-let tut=0;try{tut=+localStorage.getItem('cubeyTut')||0}catch(e){}
-function tutorial(){if(state!=='play'||tut>=3||!g)return;const msgs=['TAP / SPACE TO FLY UP','FLY THROUGH THE GAPS',TOUCH?'ROUND BUTTON: SPECIAL ABILITY':'SHIFT / ROUND BUTTON: SPECIAL ABILITY'];const step=g.score<1?0:g.score<3?1:2;if(step===2&&g.score>=6){tut=3;try{localStorage.setItem('cubeyTut',3)}catch(e){}return;}
+let tut=+Store.get('cubeyTut')||0;
+function tutorial(){if(state!=='play'||tut>=3||!g)return;const msgs=['TAP / SPACE TO FLY UP','FLY THROUGH THE GAPS',TOUCH?'ROUND BUTTON: SPECIAL ABILITY':'SHIFT / ROUND BUTTON: SPECIAL ABILITY'];const step=g.score<1?0:g.score<3?1:2;if(step===2&&g.score>=6){tut=3;Store.set('cubeyTut',3);return;}
  const a=.85+Math.sin(t*.1)*.15;x.fillStyle='rgba(8,10,14,.82)';x.beginPath();x.roundRect(W/2-280,146,560,60,8);x.fill();x.strokeStyle='rgba(140,255,200,.6)';x.lineWidth=2;x.stroke();text(msgs[step],W/2,186,24,`rgba(170,255,215,${a})`,'700');if(step===0&&g.wait){x.fillStyle=`rgba(255,255,255,${a})`;x.beginPath();x.moveTo(HX+60,g.y-10);x.lineTo(HX+40,g.y-34);x.lineTo(HX+80,g.y-34);x.fill();}}
 function loop(now){const dt=adPlaying?0:clamp((now-last)/16.667,0,3)*slowmo;last=now;update(dt);draw();tutorial();requestAnimationFrame(loop);}
 requestAnimationFrame(loop);
